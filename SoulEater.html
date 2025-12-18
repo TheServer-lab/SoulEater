@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Soul Eater — Ascended</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body { margin:0; overflow:hidden; background:#050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+  canvas { display:block; }
+
+  /* UI */
+  #ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  #ui-layer > * { pointer-events: auto; }
+
+  #menu {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(15,15,15,0.98); padding: 30px; border-radius: 16px;
+    text-align: center; border: 2px solid #4ea3ff; box-shadow: 0 0 30px rgba(78,163,255,0.3);
+    transition: all 0.5s ease;
+  }
+  input, button { display:block; width:100%; margin:8px 0; padding:12px; border-radius:8px; border:none; font-size:15px; box-sizing: border-box; }
+  input[type="text"] { background:#222; color:#fff; width:220px; margin:6px auto; text-align: center; border: 1px solid #444; }
+  input[type="color"] { height:45px; cursor:pointer; background: transparent; padding: 2px; }
+  button { background:#4ea3ff; color:#fff; cursor:pointer; font-weight:700; text-transform: uppercase; letter-spacing: 1px; }
+  button:hover { background:#3a89e0; transform: scale(1.02); }
+
+  #stats-ui {
+    position: fixed; left: 20px; bottom: 20px; font-family: monospace;
+    background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 8px; border-left: 4px solid #4ea3ff;
+  }
+
+  #leaderboard {
+    position: fixed; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px;
+    min-width: 180px; font-family: monospace; border: 1px solid #333;
+  }
+  .lb-entry { display:flex; justify-content:space-between; gap:12px; margin-bottom:4px; font-size: 13px; }
+  .lb-rank { color:#666; }
+
+  .label { font-size:11px; color:#888; text-align:center; margin-top:10px; letter-spacing: 1px; }
+
+  #powerup-ui {
+    position: fixed; left: 10px; top: 10px; color:#fff; font-size:14px;
+    background: rgba(0,0,0,0.6); padding:10px; border-radius:8px; min-width:160px;
+  }
+  .pu-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .pu-icon { width:16px; height:16px; border-radius:3px; }
+  .pu-bar { height:5px; background:#222; border-radius:3px; overflow:hidden; flex:1; margin-top:4px; }
+  .pu-fill { height:100%; background:#4ea3ff; width:0%; transition: width 0.1s linear; }
+
+  #victory-screen {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, rgba(78,163,255,0.2) 0%, rgba(0,0,0,0.9) 100%);
+    flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    pointer-events: auto;
+  }
+  #victory-screen h1 { font-size: 60px; margin: 0; color: #fff; text-shadow: 0 0 20px #4ea3ff; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="ui-layer">
+  <div id="menu">
+    <h1 id="menu-title" style="margin-top:0; letter-spacing:4px;">SOUL EATER</h1>
+    <div class="label">VESSEL NAME</div>
+    <input type="text" id="playerName" value="SoulsSeeker" maxlength="12">
+    <div class="label">SOUL ESSENCE</div>
+    <input type="color" id="playerColor" value="#4ea3ff">
+    <button id="startBtn">Begin Harvest</button>
+    <button id="restartBtn" style="display:none;">Reincarnate</button>
+    <div style="font-size:11px; color:#666; margin-top:15px; line-height:1.4;">
+        Reach <b>400 Mass</b> to Ascend.<br>
+        Mouse/WASD to move.
+    </div>
+  </div>
+
+  <div id="stats-ui" style="display:none;">
+    <div>MASS: <span id="stat-mass">0</span></div>
+    <div style="color: #aaa; font-size: 11px;">SOULS: <span id="stat-souls">0</span></div>
+  </div>
+
+  <div id="victory-screen">
+    <h1>ASCENDED</h1>
+    <p>You have consumed the world's essence.</p>
+    <button id="winRestartBtn" style="width: 200px;">Begin Anew</button>
+  </div>
+
+  <div id="leaderboard" style="display:none;">
+    <div style="font-weight:bold; border-bottom:1px solid #444; margin-bottom:8px; color:#4ea3ff; font-size:12px;">TOP REAPERS</div>
+    <div id="lb-content"></div>
+  </div>
+
+  <div id="powerup-ui" style="display:none;">
+    <div id="pu-list"></div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   CONFIG & STATE
+========================= */
+const WORLD_SIZE = 5000;
+const INITIAL_FOOD = 500;
+const BOT_COUNT = 22;
+const WIN_RADIUS = 400; // The Ending goal
+let gameActive = false;
+let soulsHarvested = 0;
+let cameraZoom = 1.0;
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const uiElements = {
+    menu: document.getElementById("menu"),
+    title: document.getElementById("menu-title"),
+    startBtn: document.getElementById("startBtn"),
+    restartBtn: document.getElementById("restartBtn"),
+    lb: document.getElementById("leaderboard"),
+    lbContent: document.getElementById("lb-content"),
+    puUI: document.getElementById("powerup-ui"),
+    puList: document.getElementById("pu-list"),
+    stats: document.getElementById("stats-ui"),
+    massText: document.getElementById("stat-mass"),
+    soulText: document.getElementById("stat-souls"),
+    victory: document.getElementById("victory-screen")
+};
+
+function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+addEventListener("resize", resize);
+resize();
+
+const rand = (a,b)=>Math.random()*(b-a)+a;
+const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+/* =========================
+   AUDIO
+========================= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type='sine', duration=0.08, gain=0.12){
+  if(audioCtx.state === 'suspended') return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(gain, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + duration);
+}
+const sounds = {
+    eat: () => playTone(400 + Math.random()*200, 'triangle', 0.1, 0.05),
+    powerup: () => { playTone(800, 'sine', 0.2); setTimeout(()=>playTone(1200, 'sine', 0.2), 50); },
+    death: () => { playTone(150, 'sawtooth', 0.5, 0.2); playTone(100, 'sine', 0.6, 0.2); },
+    win: () => { 
+        [440, 554, 659, 880].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.8, 0.1), i * 150));
+    }
+};
+
+/* =========================
+   ENTITIES
+========================= */
+const player = { x:0, y:0, r:30, speed:3.2, color:"#4ea3ff", name:"You", alive:false, speedMult:1, magnet:false };
+const food = [], bots = [], powerups = [], particles = [];
+const botNames = ["Malphas", "Vepar", "Orobas", "Sallos", "Valac", "Balam", "Xezbeth", "Zagan", "Murmur", "Keres", "Moros", "Thanatos"];
+const POWERUP_TYPES = { SPEED: {t:'speed', c:'#ffd166', l:'Haste'}, MAGNET: {t:'magnet', c:'#8be9a8', l:'Void Pull'} };
+
+/* =========================
+   LOGIC HELPERS
+========================= */
+function spawnFood(n=1){
+  for(let i=0;i<n;i++) food.push({
+    x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2),
+    r:rand(3,5), color: `hsl(${rand(0,360)}, 60%, 50%)`
+  });
+}
+
+function spawnBot(){
+  const role = Math.random() > 0.6 ? 'hunter' : 'gatherer';
+  bots.push({
+    x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2),
+    r: rand(20, player.r * 1.2), speed: rand(1.8, 2.8),
+    color: role === 'hunter' ? `hsl(${rand(0,20)}, 70%, 45%)` : `hsl(${rand(200,260)}, 50%, 50%)`,
+    name: botNames[Math.floor(Math.random()*botNames.length)],
+    alive: true, role, aggression: rand(0.5, 1)
+  });
+}
+
+function spawnPowerup(){
+  const types = Object.values(POWERUP_TYPES);
+  const type = types[Math.floor(Math.random()*types.length)];
+  powerups.push({ x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2), type, ttl: 1200 });
+}
+
+/* =========================
+   INPUT
+========================= */
+const mouse = { x:0, y:0 }, keys = {};
+addEventListener("mousemove", e => { mouse.x = e.clientX - canvas.width/2; mouse.y = e.clientY - canvas.height/2; });
+addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+function getMoveAngle(){
+  let vx = 0, vy = 0;
+  if(keys.w || keys.arrowup) vy--; if(keys.s || keys.arrowdown) vy++;
+  if(keys.a || keys.arrowleft) vx--; if(keys.d || keys.arrowright) vx++;
+  return (vx !== 0 || vy !== 0) ? Math.atan2(vy, vx) : Math.atan2(mouse.y, mouse.x);
+}
+
+/* =========================
+   GAME CONTROL
+========================= */
+function startGame(){
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  player.name = document.getElementById("playerName").value || "Vessel";
+  player.color = document.getElementById("playerColor").value;
+  player.alive = true; player.r = 30; player.x = 0; player.y = 0;
+  player.speedMult = 1; player.magnet = false;
+  soulsHarvested = 0; cameraZoom = 1.0;
+  
+  food.length = 0; bots.length = 0; powerups.length = 0; particles.length = 0;
+  spawnFood(INITIAL_FOOD);
+  for(let i=0; i<BOT_COUNT; i++) spawnBot();
+  
+  gameActive = true;
+  uiElements.menu.style.display = "none";
+  uiElements.victory.style.display = "none";
+  uiElements.lb.style.display = "block";
+  uiElements.stats.style.display = "block";
+  uiElements.puUI.style.display = "block";
+}
+
+function winGame(){
+    gameActive = false;
+    sounds.win();
+    uiElements.victory.style.display = "flex";
+    uiElements.stats.style.display = "none";
+    uiElements.lb.style.display = "none";
+    uiElements.puUI.style.display = "none";
+}
+
+uiElements.startBtn.onclick = startGame;
+uiElements.restartBtn.onclick = startGame;
+document.getElementById("winRestartBtn").onclick = startGame;
+
+/* =========================
+   UPDATE LOOP
+========================= */
+const activePUs = {};
+
+function update(){
+  if(!gameActive) return;
+
+  // 1. Player Movement & Zoom Logic
+  if(player.alive){
+    const angle = getMoveAngle();
+    const currentSpeed = (player.speed * player.speedMult) / (1 + player.r/200);
+    player.x += Math.cos(angle) * currentSpeed;
+    player.y += Math.sin(angle) * currentSpeed;
+    player.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.x));
+    player.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.y));
+
+    // Dynamic Zoom: As you get bigger, zoom out.
+    let targetZoom = 1 / (1 + (player.r - 30) / 300);
+    cameraZoom += (targetZoom - cameraZoom) * 0.05;
+
+    // Victory Check
+    if(player.r >= WIN_RADIUS) winGame();
+  }
+
+  // 2. Bot AI
+  bots.forEach(b => {
+    let target = null, minDist = 600;
+    // Simple AI: Hunters chase smaller things, gatherers chase food
+    if(b.role === 'hunter' && player.alive && player.r < b.r * 0.9) target = player;
+    
+    if(!target){
+        food.forEach(f => {
+            const d = dist(b, f);
+            if(d < minDist) { minDist = d; target = f; }
+        });
+    }
+
+    const angle = target ? Math.atan2(target.y - b.y, target.x - b.x) : Math.random() * Math.PI * 2;
+    const s = b.speed / (1 + b.r/200);
+    b.x += Math.cos(angle) * s;
+    b.y += Math.sin(angle) * s;
+    b.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, b.x));
+    b.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, b.y));
+  });
+
+  // 3. Collisions
+  checkCollisions(player);
+  bots.forEach(checkCollisions);
+
+  // 4. Powerups & UI
+  updatePowerups();
+  
+  uiElements.massText.innerText = Math.floor(player.r);
+  uiElements.soulText.innerText = soulsHarvested;
+}
+
+function checkCollisions(ent){
+  // Eat Food
+  for(let i=food.length-1; i>=0; i--){
+    if(dist(ent, food[i]) < ent.r){
+      ent.r += 0.35;
+      if(ent === player) sounds.eat();
+      food.splice(i, 1);
+      if(food.length < INITIAL_FOOD) spawnFood(1);
+    }
+  }
+
+  // Magnet effect
+  if(ent === player && player.magnet){
+    food.forEach(f => {
+      const d = dist(ent, f);
+      if(d < 250){
+        const a = Math.atan2(ent.y - f.y, ent.x - f.x);
+        f.x += Math.cos(a) * 6; f.y += Math.sin(a) * 6;
+      }
+    });
+  }
+
+  // Combat
+  const targets = ent === player ? bots : (player.alive ? [...bots, player] : bots);
+  targets.forEach(t => {
+    if(t === ent || !t.alive) return;
+    const d = dist(ent, t);
+    if(d < ent.r && ent.r > t.r * 1.1){
+      ent.r += t.r * 0.3;
+      if(ent === player) { sounds.eat(); soulsHarvested++; }
+      
+      if(t === player){
+        player.alive = false; gameActive = false;
+        sounds.death();
+        uiElements.menu.style.display = "block";
+        uiElements.title.innerText = "CONSUMED";
+        uiElements.restartBtn.style.display = "block";
+        uiElements.startBtn.style.display = "none";
+      } else {
+        const idx = bots.indexOf(t);
+        if(idx > -1) bots.splice(idx, 1);
+        spawnBot();
+      }
+    }
+  });
+
+  // Powerup Pickup
+  if(ent === player){
+    for(let i=powerups.length-1; i>=0; i--){
+        const p = powerups[i];
+        if(dist(ent, p) < ent.r + 10){
+            applyPowerup(p.type);
+            powerups.splice(i, 1);
+        }
+    }
+  }
+}
+
+function applyPowerup(type){
+  sounds.powerup();
+  const key = type.t;
+  activePUs[key] = { ...type, time: 600 };
+  if(key === 'speed') player.speedMult = 1.8;
+  if(key === 'magnet') player.magnet = true;
+}
+
+function updatePowerups(){
+  let html = '';
+  for(const k in activePUs){
+    const p = activePUs[k];
+    p.time--;
+    const pct = (p.time / 600) * 100;
+    html += `
+      <div class="pu-item">
+        <div class="pu-icon" style="background:${p.c}"></div>
+        <div style="flex:1">
+          <div style="font-size:11px; font-weight:bold;">${p.l}</div>
+          <div class="pu-bar"><div class="pu-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>`;
+    if(p.time <= 0){
+      if(k === 'speed') player.speedMult = 1;
+      if(k === 'magnet') player.magnet = false;
+      delete activePUs[k];
+    }
+  }
+  uiElements.puList.innerHTML = html;
+  if(Math.random() < 0.002 && powerups.length < 5) spawnPowerup();
+}
+
+/* =========================
+   RENDER LOOP
+========================= */
+function draw(){
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  // Apply Camera movement and Zoom
+  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.scale(cameraZoom, cameraZoom);
+  ctx.translate(-player.x, -player.y);
+
+  // Grid
+  ctx.strokeStyle = "#151515";
+  ctx.lineWidth = 2;
+  for(let i = -WORLD_SIZE/2; i <= WORLD_SIZE/2; i += 150){
+    ctx.beginPath(); ctx.moveTo(i, -WORLD_SIZE/2); ctx.lineTo(i, WORLD_SIZE/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-WORLD_SIZE/2, i); ctx.lineTo(WORLD_SIZE/2, i); ctx.stroke();
+  }
+
+  // World Border
+  ctx.strokeStyle = player.color;
+  ctx.lineWidth = 10;
+  ctx.strokeRect(-WORLD_SIZE/2, -WORLD_SIZE/2, WORLD_SIZE, WORLD_SIZE);
+
+  // Entities
+  food.forEach(f => {
+    ctx.fillStyle = f.color;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill();
+  });
+
+  powerups.forEach(p => {
+    ctx.fillStyle = p.type.c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#000"; ctx.textAlign="center"; ctx.font="bold 12px Arial";
+    ctx.fillText(p.type.l[0], p.x, p.y+4);
+  });
+
+  bots.forEach(b => {
+    // Danger indicator if bot can eat player
+    if(player.alive && b.r > player.r * 1.1){
+        ctx.strokeStyle = "rgba(255,0,0," + (0.3 + Math.sin(Date.now()/200)*0.2) + ")";
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI*2); ctx.stroke();
+    }
+    drawEntity(b);
+  });
+  
+  if(player.alive) drawEntity(player);
+
+  ctx.restore();
+
+  drawMinimap();
+  if(gameActive && Date.now() % 1000 < 50) updateLeaderboard();
+  requestAnimationFrame(draw);
+}
+
+function drawEntity(e){
+  ctx.fillStyle = e.color;
+  ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "white";
+  ctx.font = `bold ${Math.max(12, e.r/2.5)}px Arial`;
+  ctx.textAlign = "center";
+  ctx.fillText(e.name, e.x, e.y + e.r/6);
+}
+
+function drawMinimap(){
+  const size = 160, margin = 20;
+  const mx = margin, my = canvas.height - size - margin;
+  ctx.fillStyle = "rgba(0,0,0,0.8)";
+  ctx.fillRect(mx, my, size, size);
+  ctx.strokeStyle = "#333";
+  ctx.strokeRect(mx, my, size, size);
+
+  const s = size / WORLD_SIZE;
+  const cx = mx + size/2, cy = my + size/2;
+
+  bots.forEach(b => {
+    ctx.fillStyle = b.color;
+    // Minimap dots now scale with entity size!
+    const dotSize = Math.max(2, b.r * s * 2);
+    ctx.beginPath(); ctx.arc(cx + b.x*s, cy + b.y*s, dotSize, 0, Math.PI*2); ctx.fill();
+  });
+
+  if(player.alive){
+    ctx.fillStyle = "#fff";
+    const pSize = Math.max(3, player.r * s * 2);
+    ctx.beginPath(); ctx.arc(cx + player.x*s, cy + player.y*s, pSize, 0, Math.PI*2); ctx.fill();
+    // Pulse effect on minimap for player
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx + player.x*s, cy + player.y*s, pSize + Math.sin(Date.now()/100)*2, 0, Math.PI*2); ctx.stroke();
+  }
+}
+
+function updateLeaderboard(){
+  let all = [...bots]; if(player.alive) all.push(player);
+  all.sort((a,b) => b.r - a.r);
+  uiElements.lbContent.innerHTML = all.slice(0, 8).map((e, i) => `
+    <div class="lb-entry" style="color:${e === player ? '#fff' : '#888'}">
+      <span><span class="lb-rank">${i+1}.</span> ${e.name}</span>
+      <span>${Math.floor(e.r)}</span>
+    </div>
+  `).join('');
+}
+
+// Start visual loop
+spawnFood(INITIAL_FOOD);
+for(let i=0; i<BOT_COUNT; i++) spawnBot();
+requestAnimationFrame(draw);
+setInterval(update, 1000/60);
+</script>
+</body>
+</html>
