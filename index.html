@@ -1,503 +1,1333 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Soul Eater — Ascended</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zonex — Territorial System (continents, supply, enemy camps)</title>
 <style>
-  body { margin:0; overflow:hidden; background:#050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
-  canvas { display:block; }
-
-  /* UI */
-  #ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-  #ui-layer > * { pointer-events: auto; }
-
-  #menu {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(15,15,15,0.98); padding: 30px; border-radius: 16px;
-    text-align: center; border: 2px solid #4ea3ff; box-shadow: 0 0 30px rgba(78,163,255,0.3);
-    transition: all 0.5s ease;
-  }
-  input, button { display:block; width:100%; margin:8px 0; padding:12px; border-radius:8px; border:none; font-size:15px; box-sizing: border-box; }
-  input[type="text"] { background:#222; color:#fff; width:220px; margin:6px auto; text-align: center; border: 1px solid #444; }
-  input[type="color"] { height:45px; cursor:pointer; background: transparent; padding: 2px; }
-  button { background:#4ea3ff; color:#fff; cursor:pointer; font-weight:700; text-transform: uppercase; letter-spacing: 1px; }
-  button:hover { background:#3a89e0; transform: scale(1.02); }
-
-  #stats-ui {
-    position: fixed; left: 20px; bottom: 20px; font-family: monospace;
-    background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 8px; border-left: 4px solid #4ea3ff;
-  }
-
-  #leaderboard {
-    position: fixed; top: 10px; right: 10px;
-    background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px;
-    min-width: 180px; font-family: monospace; border: 1px solid #333;
-  }
-  .lb-entry { display:flex; justify-content:space-between; gap:12px; margin-bottom:4px; font-size: 13px; }
-  .lb-rank { color:#666; }
-
-  .label { font-size:11px; color:#888; text-align:center; margin-top:10px; letter-spacing: 1px; }
-
-  #powerup-ui {
-    position: fixed; left: 10px; top: 10px; color:#fff; font-size:14px;
-    background: rgba(0,0,0,0.6); padding:10px; border-radius:8px; min-width:160px;
-  }
-  .pu-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-  .pu-icon { width:16px; height:16px; border-radius:3px; }
-  .pu-bar { height:5px; background:#222; border-radius:3px; overflow:hidden; flex:1; margin-top:4px; }
-  .pu-fill { height:100%; background:#4ea3ff; width:0%; transition: width 0.1s linear; }
-
-  #victory-screen {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle, rgba(78,163,255,0.2) 0%, rgba(0,0,0,0.9) 100%);
-    flex-direction: column; justify-content: center; align-items: center; text-align: center;
-    pointer-events: auto;
-  }
-  #victory-screen h1 { font-size: 60px; margin: 0; color: #fff; text-shadow: 0 0 20px #4ea3ff; }
+  :root{--bg:#04121a;--panel:#08232b;--muted:#9fb0c8;--accent:#2b9cff}
+  html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:#d8f1ff}
+  #app{display:flex;gap:12px;padding:12px;box-sizing:border-box;height:100vh}
+  #left{flex:1;display:flex;flex-direction:column;gap:8px}
+  canvas{background:#081726;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,0.6);width:100%;height:100%;display:block;cursor:crosshair}
+  #controls{width:480px;display:flex;flex-direction:column;gap:8px}
+  .panel{background:var(--panel);padding:10px;border-radius:8px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+  .title{font-weight:900;font-size:18px}
+  .subtitle{font-weight:600;font-size:12px;color:#9fc3e8}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+  input[type="range"],select{width:100%}
+  button{padding:8px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;background:var(--accent);color:white}
+  .row{display:flex;gap:8px;align-items:center}
+  .legend{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 8px;border-radius:6px;color:#041018;font-weight:700}
+  .muted{color:#8fb0c8;font-size:13px}
+  .small{font-size:13px;color:#cfe6ff}
+  .controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #mainMenu{position:fixed;inset:0;background:linear-gradient(180deg, rgba(2,6,10,0.85), rgba(2,6,10,0.95));display:flex;align-items:center;justify-content:center;z-index:9999}
+  #menuCard{width:680px;background:#07202a;padding:20px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.7)}
+  .menu-row{display:flex;gap:10px;margin-bottom:10px;align-items:center}
+  .menu-input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:#e6f7ff;flex:1}
+  .small-muted{color:#91aebf;font-size:12px}
+  .cont-list{max-height:140px;overflow:auto;padding:6px;background:rgba(255,255,255,0.02);border-radius:6px}
+  .camp-list{max-height:120px;overflow:auto;padding:6px;background:rgba(255,255,255,0.02);border-radius:6px}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+<div id="app">
+  <div id="left">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+      <canvas id="c" tabindex="0"></canvas>
+    </div>
 
-<div id="ui-layer">
-  <div id="menu">
-    <h1 id="menu-title" style="margin-top:0; letter-spacing:4px;">SOUL EATER</h1>
-    <div class="label">VESSEL NAME</div>
-    <input type="text" id="playerName" value="SoulsSeeker" maxlength="12">
-    <div class="label">SOUL ESSENCE</div>
-    <input type="color" id="playerColor" value="#4ea3ff">
-    <button id="startBtn">Begin Harvest</button>
-    <button id="restartBtn" style="display:none;">Reincarnate</button>
-    <div style="font-size:11px; color:#666; margin-top:15px; line-height:1.4;">
-        Reach <b>400 Mass</b> to Ascend.<br>
-        Mouse/WASD to move.
+    <div class="panel small muted">
+      Zonex — now with continents, supply lines, and neutral enemy camps. Capture continents for bonuses; protect your supply lines or isolated cells will attrit.
     </div>
   </div>
 
-  <div id="stats-ui" style="display:none;">
-    <div>MASS: <span id="stat-mass">0</span></div>
-    <div style="color: #aaa; font-size: 11px;">SOULS: <span id="stat-souls">0</span></div>
-  </div>
+  <div id="controls">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <div class="title">Zonex</div>
+          <div class="subtitle" style="margin-top:4px">territorial mechanics prototype</div>
+        </div>
+        <div id="stat-winner" class="small" style="min-width:110px;text-align:right"></div>
+      </div>
 
-  <div id="victory-screen">
-    <h1>ASCENDED</h1>
-    <p>You have consumed the world's essence.</p>
-    <button id="winRestartBtn" style="width: 200px;">Begin Anew</button>
-  </div>
+      <div style="margin-top:8px">
+        <div class="row" style="gap:6px;margin-bottom:8px">
+          <button id="btn-open-menu">Main Menu</button>
+          <button id="btn-reset">Reset</button>
+        </div>
 
-  <div id="leaderboard" style="display:none;">
-    <div style="font-weight:bold; border-bottom:1px solid #444; margin-bottom:8px; color:#4ea3ff; font-size:12px;">TOP REAPERS</div>
-    <div id="lb-content"></div>
-  </div>
+        <div class="controls-grid">
+          <div>
+            <label>Attack % (send size)</label>
+            <input id="attackPct" type="range" min="5" max="90" value="30" />
+          </div>
+          <div>
+            <label>Difficulty</label>
+            <select id="difficultySelect">
+              <option value="normal">Normal</option>
+              <option value="easy">Easy</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+        </div>
 
-  <div id="powerup-ui" style="display:none;">
-    <div id="pu-list"></div>
+        <label style="margin-top:8px">Simulation speed (ticks/sec)</label>
+        <input id="speed" type="range" min="1" max="12" value="4" />
+
+        <label style="margin-top:8px">Movement speed (cells / tick)</label>
+        <input id="moveSpeed" type="range" min="0.2" max="2.0" step="0.1" value="0.5" />
+
+        <div style="margin-top:8px">
+          <div class="muted">Selected:</div>
+          <div id="selectedInfo" class="small">None</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:800">Player</div>
+          <div id="playerNameUI" class="muted">—</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:900;font-size:18px" id="coinsUI">0</div>
+          <div class="muted">Coins</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <button id="btn-shop">Open Shop</button>
+        <button id="btn-inventory" style="margin-left:8px">Inventory</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800">Continents</div>
+        <div class="small-muted">control bonuses & status</div>
+      </div>
+      <div style="margin-top:8px" class="cont-list" id="continentList"></div>
+      <div style="margin-top:8px" class="controls-grid">
+        <div><label><input type="checkbox" id="showContinents" checked /> Show continents overlay</label></div>
+        <div><label><input type="checkbox" id="showIsolation" checked /> Show isolated (supply) cells</label></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800">Enemy Camps</div>
+        <div class="small-muted">neutral hostile NPCs</div>
+      </div>
+      <div id="campList" class="camp-list" style="margin-top:8px"></div>
+      <div style="margin-top:8px" class="small-muted">Camps grow and attack nearby cells automatically—clearing one yields coins.</div>
+    </div>
+
+    <div class="panel small muted" id="purchasesPanel" style="display:none">
+      <div style="font-weight:800;margin-bottom:6px">Purchased Upgrades</div>
+      <div id="purchasesList" class="muted">none</div>
+    </div>
+  </div>
+</div>
+
+<!-- Menu (reuse simplified) -->
+<div id="mainMenu">
+  <div id="menuCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <div style="font-weight:900;font-size:20px">Zonex</div>
+        <div style="color:#9fc3e8;margin-top:4px">territorial start menu</div>
+      </div>
+      <div style="color:#7fb3d6">v1.0 — territorial</div>
+    </div>
+
+    <div class="menu-row">
+      <div style="width:100%">
+        <label style="color:#9fb0c8">Player name</label>
+        <input id="menuName" class="menu-input" placeholder="Your name (optional)" />
+      </div>
+    </div>
+
+    <div class="menu-row">
+      <div style="width:100%">
+        <label style="color:#9fb0c8">Difficulty</label>
+        <select id="menuDifficulty" class="menu-input">
+          <option value="normal">Normal</option>
+          <option value="easy">Easy</option>
+          <option value="hard">Hard</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="menu-row">
+      <div style="width:100%;display:flex;gap:8px">
+        <button id="menuStart">Start New Game</button>
+        <button id="menuLoad">Load Saved</button>
+        <button id="menuDownload">Download Saved</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div style="font-weight:800;margin-bottom:6px">Quick Tips</div>
+      <ul style="color:#9fb0c8;margin-top:0">
+        <li>Continents grant bonuses when you control most of them — capture them for growth & coins.</li>
+        <li>Protect supply lines: isolated cells will slowly lose troops.</li>
+        <li>Clear enemy camps for coin bounties and safer fronts.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Shop & inventory (as previous prototypes) -->
+<div id="shopModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(4,6,8,0.7);z-index:9998">
+  <div style="width:520px;background:#07202a;padding:16px;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-weight:900;font-size:18px">Shop</div>
+      <div><button id="shopClose">Close</button></div>
+    </div>
+    <div id="shopItems"></div>
+    <div style="margin-top:12px" class="muted">Purchased upgrades apply immediately and persist to saves.</div>
+  </div>
+</div>
+
+<div id="invModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(4,6,8,0.7);z-index:9998">
+  <div style="width:420px;background:#07202a;padding:16px;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-weight:900;font-size:18px">Inventory</div>
+      <div><button id="invClose">Close</button></div>
+    </div>
+    <div id="invItems"></div>
   </div>
 </div>
 
 <script>
-/* =========================
-   CONFIG & STATE
-========================= */
-const WORLD_SIZE = 5000;
-const INITIAL_FOOD = 500;
-const BOT_COUNT = 22;
-const WIN_RADIUS = 400; // The Ending goal
-let gameActive = false;
-let soulsHarvested = 0;
-let cameraZoom = 1.0;
+(() => {
+  // ---------------- CONFIG ----------------
+  // Map size (reduce for slow machines)
+  const GRID_W = 36;
+  const GRID_H = 26;
+  const CELL_SIZE = 20;
+  const N = GRID_W * GRID_H;
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const uiElements = {
-    menu: document.getElementById("menu"),
-    title: document.getElementById("menu-title"),
-    startBtn: document.getElementById("startBtn"),
-    restartBtn: document.getElementById("restartBtn"),
-    lb: document.getElementById("leaderboard"),
-    lbContent: document.getElementById("lb-content"),
-    puUI: document.getElementById("powerup-ui"),
-    puList: document.getElementById("pu-list"),
-    stats: document.getElementById("stats-ui"),
-    massText: document.getElementById("stat-mass"),
-    soulText: document.getElementById("stat-souls"),
-    victory: document.getElementById("victory-screen")
-};
+  const NEUTRAL = 0;
+  const PLAYER_ID = 1;
+  const CAMP_OWNER = 254; // neutral hostile camps owner id
+  const DEFAULT_BOT_COUNT = 3;
 
-function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
-addEventListener("resize", resize);
-resize();
+  // gameplay tuning
+  let BOT_COUNT = DEFAULT_BOT_COUNT;
+  let GROWTH_PER_TICK = 0.22;
+  let MIN_HOLD_TROOPS = 3;
+  let BOT_THINK_CADENCE = 3;
+  const PATH_MAX_VISITS = 2500;
+  const PATH_CACHE_LIMIT = 300;
 
-const rand = (a,b)=>Math.random()*(b-a)+a;
-const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  // continents
+  const CONTINENT_COUNT = 6;         // number of seeded continents
+  const CONTINENT_CONTROL_THRESHOLD = 0.80; // percent to control to get bonus
+  const CONTINENT_BONUS_GROWTH = 0.4; // growth multiplier bonus while controlling
+  const CONTINENT_BONUS_COINS = 2;    // coins per tick per continent controlled
 
-/* =========================
-   AUDIO
-========================= */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playTone(freq, type='sine', duration=0.08, gain=0.12){
-  if(audioCtx.state === 'suspended') return;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(gain, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(); o.stop(audioCtx.currentTime + duration);
-}
-const sounds = {
-    eat: () => playTone(400 + Math.random()*200, 'triangle', 0.1, 0.05),
-    powerup: () => { playTone(800, 'sine', 0.2); setTimeout(()=>playTone(1200, 'sine', 0.2), 50); },
-    death: () => { playTone(150, 'sawtooth', 0.5, 0.2); playTone(100, 'sine', 0.6, 0.2); },
-    win: () => { 
-        [440, 554, 659, 880].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.8, 0.1), i * 150));
-    }
-};
+  // camps
+  let CAMP_COUNT = 6;                 // number of neutral hostile camps
+  const CAMP_GROWTH_TICK = 0.08;      // passive growth for camps
+  const CAMP_ATTACK_CHANCE = 0.08;    // chance per camp per tick to attack
+  const CAMP_BOUNTY = 12;             // coins awarded on capture (player only)
 
-/* =========================
-   ENTITIES
-========================= */
-const player = { x:0, y:0, r:30, speed:3.2, color:"#4ea3ff", name:"You", alive:false, speedMult:1, magnet:false };
-const food = [], bots = [], powerups = [], particles = [];
-const botNames = ["Malphas", "Vepar", "Orobas", "Sallos", "Valac", "Balam", "Xezbeth", "Zagan", "Murmur", "Keres", "Moros", "Thanatos"];
-const POWERUP_TYPES = { SPEED: {t:'speed', c:'#ffd166', l:'Haste'}, MAGNET: {t:'magnet', c:'#8be9a8', l:'Void Pull'} };
+  // coin system
+  const COIN_PER_CELL_PER_TICK = 0.015;
+  const CAPTURE_BOUNTY = 6;
 
-/* =========================
-   LOGIC HELPERS
-========================= */
-function spawnFood(n=1){
-  for(let i=0;i<n;i++) food.push({
-    x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2),
-    r:rand(3,5), color: `hsl(${rand(0,360)}, 60%, 50%)`
-  });
-}
+  // ---------------- State ----------------
+  let owner = new Uint8Array(N);
+  let troops = new Float32Array(N);
+  let growthAcc = new Float32Array(N);
+  let outgoingPending = new Float32Array(N);
+  let movements = []; // moving armies: {path, owner, amount, currentIndex, progress}
+  let colors = {};
+  let botIds = [];
 
-function spawnBot(){
-  const role = Math.random() > 0.6 ? 'hunter' : 'gatherer';
-  bots.push({
-    x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2),
-    r: rand(20, player.r * 1.2), speed: rand(1.8, 2.8),
-    color: role === 'hunter' ? `hsl(${rand(0,20)}, 70%, 45%)` : `hsl(${rand(200,260)}, 50%, 50%)`,
-    name: botNames[Math.floor(Math.random()*botNames.length)],
-    alive: true, role, aggression: rand(0.5, 1)
-  });
-}
+  // continents
+  let continentId = new Int16Array(N); // continent id per cell
+  let continentCells = {}; // map id -> [cells]
+  let continentColors = {};
 
-function spawnPowerup(){
-  const types = Object.values(POWERUP_TYPES);
-  const type = types[Math.floor(Math.random()*types.length)];
-  powerups.push({ x:rand(-WORLD_SIZE/2, WORLD_SIZE/2), y:rand(-WORLD_SIZE/2, WORLD_SIZE/2), type, ttl: 1200 });
-}
+  // camps
+  let camps = []; // {cell, troops, cooldown}
 
-/* =========================
-   INPUT
-========================= */
-const mouse = { x:0, y:0 }, keys = {};
-addEventListener("mousemove", e => { mouse.x = e.clientX - canvas.width/2; mouse.y = e.clientY - canvas.height/2; });
-addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+  // visibility & supply
+  let seenEver = new Uint8Array(N);
+  let visibleNow = new Uint8Array(N);
+  let isolated = new Uint8Array(N); // 1 if isolated (cut off from owner's seeds)
 
-function getMoveAngle(){
-  let vx = 0, vy = 0;
-  if(keys.w || keys.arrowup) vy--; if(keys.s || keys.arrowdown) vy++;
-  if(keys.a || keys.arrowleft) vx--; if(keys.d || keys.arrowright) vx++;
-  return (vx !== 0 || vy !== 0) ? Math.atan2(vy, vx) : Math.atan2(mouse.y, mouse.x);
-}
+  // path cache
+  const pathCache = new Map();
 
-/* =========================
-   GAME CONTROL
-========================= */
-function startGame(){
-  if(audioCtx.state === 'suspended') audioCtx.resume();
-  player.name = document.getElementById("playerName").value || "Vessel";
-  player.color = document.getElementById("playerColor").value;
-  player.alive = true; player.r = 30; player.x = 0; player.y = 0;
-  player.speedMult = 1; player.magnet = false;
-  soulsHarvested = 0; cameraZoom = 1.0;
-  
-  food.length = 0; bots.length = 0; powerups.length = 0; particles.length = 0;
-  spawnFood(INITIAL_FOOD);
-  for(let i=0; i<BOT_COUNT; i++) spawnBot();
-  
-  gameActive = true;
-  uiElements.menu.style.display = "none";
-  uiElements.victory.style.display = "none";
-  uiElements.lb.style.display = "block";
-  uiElements.stats.style.display = "block";
-  uiElements.puUI.style.display = "block";
-}
+  // UI references
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  canvas.width = GRID_W * CELL_SIZE;
+  canvas.height = GRID_H * CELL_SIZE;
+  canvas.style.width = canvas.width + 'px';
+  canvas.style.height = canvas.height + 'px';
 
-function winGame(){
-    gameActive = false;
-    sounds.win();
-    uiElements.victory.style.display = "flex";
-    uiElements.stats.style.display = "none";
-    uiElements.lb.style.display = "none";
-    uiElements.puUI.style.display = "none";
-}
+  const attackPctInput = document.getElementById('attackPct');
+  const speedInput = document.getElementById('speed');
+  const moveSpeedInput = document.getElementById('moveSpeed');
+  const difficultySelect = document.getElementById('difficultySelect');
+  const selectedInfo = document.getElementById('selectedInfo');
+  const coinsUI = document.getElementById('coinsUI');
+  const playerNameUI = document.getElementById('playerNameUI');
+  const statWinner = document.getElementById('stat-winner');
+  const continentList = document.getElementById('continentList');
+  const campList = document.getElementById('campList');
+  const showContinentsCheckbox = document.getElementById('showContinents');
+  const showIsolationCheckbox = document.getElementById('showIsolation');
 
-uiElements.startBtn.onclick = startGame;
-uiElements.restartBtn.onclick = startGame;
-document.getElementById("winRestartBtn").onclick = startGame;
+  // menu & shop UI
+  const mainMenu = document.getElementById('mainMenu');
+  const menuStart = document.getElementById('menuStart');
+  const menuName = document.getElementById('menuName');
+  const menuDifficulty = document.getElementById('menuDifficulty');
+  const btnOpenMenu = document.getElementById('btn-open-menu');
+  const btnReset = document.getElementById('btn-reset');
+  const btnShop = document.getElementById('btn-shop');
+  const shopModal = document.getElementById('shopModal');
+  const shopClose = document.getElementById('shopClose');
+  const shopItemsEl = document.getElementById('shopItems');
+  const btnInv = document.getElementById('btn-inventory');
+  const invModal = document.getElementById('invModal');
+  const invClose = document.getElementById('invClose');
+  const shopCatalog = [
+    { id:'growth_boost', name:'Growth Boost', desc:'+25% passive growth', price:120, apply:(g)=>{ g.growthMultiplier = (g.growthMultiplier||1)*1.25 } },
+    { id:'move_boost', name:'Movement Boost', desc:'+30% movement speed', price:120, apply:(g)=>{ g.moveMultiplier = (g.moveMultiplier||1)*1.3 } },
+    { id:'vision_plus', name:'Vision Upgrade', desc:'+1 vision radius', price:80, apply:(g)=>{ g.visionBonus = (g.visionBonus||0)+1 } },
+    { id:'recruit_pack', name:'Recruit Pack', desc:'+30 troops to an owned cell', price:60, apply:(g)=>{ g.inventory = g.inventory || []; g.inventory.push({type:'recruit_pack'}) } }
+  ];
 
-/* =========================
-   UPDATE LOOP
-========================= */
-const activePUs = {};
+  // game meta / persistence
+  let playerName = 'Player';
+  let difficulty = 'normal';
+  let paused = false;
+  let selectedIndex = -1;
+  let dragging = false, dragStart = -1, previewPath = null;
 
-function update(){
-  if(!gameActive) return;
+  // economy
+  let coins = 0;
+  let purchases = [];
+  let inventory = [];
+  let gameModifiers = { growthMultiplier:1, moveMultiplier:1, visionBonus:0 };
 
-  // 1. Player Movement & Zoom Logic
-  if(player.alive){
-    const angle = getMoveAngle();
-    const currentSpeed = (player.speed * player.speedMult) / (1 + player.r/200);
-    player.x += Math.cos(angle) * currentSpeed;
-    player.y += Math.sin(angle) * currentSpeed;
-    player.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.x));
-    player.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.y));
-
-    // Dynamic Zoom: As you get bigger, zoom out.
-    let targetZoom = 1 / (1 + (player.r - 30) / 300);
-    cameraZoom += (targetZoom - cameraZoom) * 0.05;
-
-    // Victory Check
-    if(player.r >= WIN_RADIUS) winGame();
+  // helpers
+  function idx(x,y){ return y*GRID_W + x; }
+  function inBounds(x,y){ return x>=0 && x<GRID_W && y>=0 && y<GRID_H; }
+  function xyFromIndex(i){ return [i % GRID_W, Math.floor(i / GRID_W)]; }
+  function neighbors(i){
+    const x = i % GRID_W, y = Math.floor(i / GRID_W);
+    const out = [];
+    const deltas = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (const d of deltas){ const nx = x + d[0], ny = y + d[1]; if (inBounds(nx,ny)) out.push(idx(nx,ny)); }
+    return out;
   }
 
-  // 2. Bot AI
-  bots.forEach(b => {
-    let target = null, minDist = 600;
-    // Simple AI: Hunters chase smaller things, gatherers chase food
-    if(b.role === 'hunter' && player.alive && player.r < b.r * 0.9) target = player;
-    
-    if(!target){
-        food.forEach(f => {
-            const d = dist(b, f);
-            if(d < minDist) { minDist = d; target = f; }
-        });
+  // pathfinding with cache and max visits
+  function cachePath(key, path){
+    if (!key || !path) return;
+    if (pathCache.size > PATH_CACHE_LIMIT) {
+      const first = pathCache.keys().next().value;
+      pathCache.delete(first);
     }
-
-    const angle = target ? Math.atan2(target.y - b.y, target.x - b.x) : Math.random() * Math.PI * 2;
-    const s = b.speed / (1 + b.r/200);
-    b.x += Math.cos(angle) * s;
-    b.y += Math.sin(angle) * s;
-    b.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, b.x));
-    b.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, b.y));
-  });
-
-  // 3. Collisions
-  checkCollisions(player);
-  bots.forEach(checkCollisions);
-
-  // 4. Powerups & UI
-  updatePowerups();
-  
-  uiElements.massText.innerText = Math.floor(player.r);
-  uiElements.soulText.innerText = soulsHarvested;
-}
-
-function checkCollisions(ent){
-  // Eat Food
-  for(let i=food.length-1; i>=0; i--){
-    if(dist(ent, food[i]) < ent.r){
-      ent.r += 0.35;
-      if(ent === player) sounds.eat();
-      food.splice(i, 1);
-      if(food.length < INITIAL_FOOD) spawnFood(1);
-    }
+    pathCache.set(key, path);
   }
+  function getCachedPath(key){ const v = pathCache.get(key); if (!v) return null; pathCache.delete(key); pathCache.set(key, v); return v; }
 
-  // Magnet effect
-  if(ent === player && player.magnet){
-    food.forEach(f => {
-      const d = dist(ent, f);
-      if(d < 250){
-        const a = Math.atan2(ent.y - f.y, ent.x - f.x);
-        f.x += Math.cos(a) * 6; f.y += Math.sin(a) * 6;
-      }
-    });
-  }
-
-  // Combat
-  const targets = ent === player ? bots : (player.alive ? [...bots, player] : bots);
-  targets.forEach(t => {
-    if(t === ent || !t.alive) return;
-    const d = dist(ent, t);
-    if(d < ent.r && ent.r > t.r * 1.1){
-      ent.r += t.r * 0.3;
-      if(ent === player) { sounds.eat(); soulsHarvested++; }
-      
-      if(t === player){
-        player.alive = false; gameActive = false;
-        sounds.death();
-        uiElements.menu.style.display = "block";
-        uiElements.title.innerText = "CONSUMED";
-        uiElements.restartBtn.style.display = "block";
-        uiElements.startBtn.style.display = "none";
-      } else {
-        const idx = bots.indexOf(t);
-        if(idx > -1) bots.splice(idx, 1);
-        spawnBot();
-      }
-    }
-  });
-
-  // Powerup Pickup
-  if(ent === player){
-    for(let i=powerups.length-1; i>=0; i--){
-        const p = powerups[i];
-        if(dist(ent, p) < ent.r + 10){
-            applyPowerup(p.type);
-            powerups.splice(i, 1);
+  function findPath(start, goal){
+    if (start === goal) return [start];
+    const key = start + '_' + goal;
+    const cached = getCachedPath(key);
+    if (cached) return cached.slice();
+    const q = [], prev = new Int32Array(N).fill(-1), seen = new Uint8Array(N);
+    q.push(start); seen[start]=1;
+    let head=0, visits=0;
+    while (head < q.length){
+      const cur = q[head++]; visits++;
+      if (visits > PATH_MAX_VISITS) break;
+      for (const n of neighbors(cur)){
+        if (seen[n]) continue;
+        seen[n] = 1; prev[n] = cur;
+        if (n === goal){
+          const path = [goal]; let p = cur;
+          while (p !== -1){ path.push(p); p = prev[p]; }
+          path.reverse(); cachePath(key, path.slice()); return path;
         }
+        q.push(n);
+      }
+    }
+    return null;
+  }
+
+  // colors & init
+  function randColor(){
+    const h = Math.floor(Math.random()*360), s = 62 + Math.floor(Math.random()*18), l = 48 + Math.floor(Math.random()*6);
+    return `hsl(${h} ${s}% ${l}%)`;
+  }
+  function initColors(){
+    colors = {}; colors[NEUTRAL] = '#21313a'; colors[PLAYER_ID] = '#26a0ff'; botIds = [];
+    for (let b=0;b<BOT_COUNT;b++){ const id = PLAYER_ID+1+b; colors[id] = randColor(); botIds.push(id); }
+    // continent colors
+    continentColors = {};
+    for (let c=0;c<CONTINENT_COUNT;c++) continentColors[c] = `hsla(${(c*60)%360} 60% 55% / 0.18)`; // faint overlay
+  }
+
+  // ---------- Map generation with continents ----------
+  function generateContinents(){
+    // simple seeded growth: choose CONTINENT_COUNT seeds, flood outward randomly to assign continentId
+    continentId.fill(-1);
+    continentCells = {};
+    const seeds = [];
+    // pick spaced seeds across map
+    for (let k=0;k<CONTINENT_COUNT;k++){
+      const gx = Math.floor((k+0.5) * GRID_W / CONTINENT_COUNT);
+      const gy = Math.floor(Math.random() * GRID_H);
+      seeds.push(idx(Math.max(1, Math.min(GRID_W-2, gx)), Math.max(1, Math.min(GRID_H-2, gy))));
+    }
+    const q = [];
+    for (let i=0;i<seeds.length;i++){
+      const s = seeds[i]; continentId[s] = i; q.push(s);
+      continentCells[i] = [s];
+    }
+    // random expansion until all cells assigned
+    const order = [];
+    for (let i=0;i<N;i++) order.push(i);
+    // shuffle order to randomize growth edges
+    for (let i=order.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+    for (const cell of order){
+      if (continentId[cell] !== -1) continue;
+      // pick random neighbor's continent if possible
+      const neigh = neighbors(cell).filter(n => continentId[n] !== -1);
+      if (neigh.length > 0){
+        const pick = neigh[Math.floor(Math.random()*neigh.length)];
+        const cid = continentId[pick];
+        continentId[cell] = cid;
+        continentCells[cid].push(cell);
+      } else {
+        // isolated: assign to a random seed continent
+        const cid = Math.floor(Math.random()*CONTINENT_COUNT);
+        continentId[cell] = cid;
+        continentCells[cid] = continentCells[cid] || [];
+        continentCells[cid].push(cell);
+      }
     }
   }
-}
 
-function applyPowerup(type){
-  sounds.powerup();
-  const key = type.t;
-  activePUs[key] = { ...type, time: 600 };
-  if(key === 'speed') player.speedMult = 1.8;
-  if(key === 'magnet') player.magnet = true;
-}
-
-function updatePowerups(){
-  let html = '';
-  for(const k in activePUs){
-    const p = activePUs[k];
-    p.time--;
-    const pct = (p.time / 600) * 100;
-    html += `
-      <div class="pu-item">
-        <div class="pu-icon" style="background:${p.c}"></div>
-        <div style="flex:1">
-          <div style="font-size:11px; font-weight:bold;">${p.l}</div>
-          <div class="pu-bar"><div class="pu-fill" style="width:${pct}%"></div></div>
-        </div>
-      </div>`;
-    if(p.time <= 0){
-      if(k === 'speed') player.speedMult = 1;
-      if(k === 'magnet') player.magnet = false;
-      delete activePUs[k];
+  // camps placement
+  function placeCamps(){
+    camps = [];
+    const possible = [];
+    for (let i=0;i<N;i++){
+      if (owner[i] === NEUTRAL) possible.push(i);
+    }
+    for (let k=0;k<CAMP_COUNT && possible.length>0;k++){
+      const idxPick = Math.floor(Math.random()*possible.length);
+      const cell = possible.splice(idxPick,1)[0];
+      const t = 8 + Math.floor(Math.random()*10);
+      camps.push({ cell, troops: t, cooldown: 0 });
+      owner[cell] = CAMP_OWNER; // mark as camp-owned for rendering & behavior
+      troops[cell] = t;
     }
   }
-  uiElements.puList.innerHTML = html;
-  if(Math.random() < 0.002 && powerups.length < 5) spawnPowerup();
-}
 
-/* =========================
-   RENDER LOOP
-========================= */
-function draw(){
-  ctx.fillStyle = "#050505";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // reset / initialize map and game state
+  function resetMap(){
+    owner = new Uint8Array(N);
+    troops = new Float32Array(N);
+    growthAcc = new Float32Array(N);
+    outgoingPending = new Float32Array(N);
+    movements = [];
+    continentId = new Int16Array(N);
+    continentCells = {};
+    seenEver = new Uint8Array(N);
+    visibleNow = new Uint8Array(N);
+    isolated = new Uint8Array(N);
+    pathCache.clear();
 
-  ctx.save();
-  // Apply Camera movement and Zoom
-  ctx.translate(canvas.width/2, canvas.height/2);
-  ctx.scale(cameraZoom, cameraZoom);
-  ctx.translate(-player.x, -player.y);
+    initColors();
+    // fill continents first
+    generateContinents();
 
-  // Grid
-  ctx.strokeStyle = "#151515";
-  ctx.lineWidth = 2;
-  for(let i = -WORLD_SIZE/2; i <= WORLD_SIZE/2; i += 150){
-    ctx.beginPath(); ctx.moveTo(i, -WORLD_SIZE/2); ctx.lineTo(i, WORLD_SIZE/2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-WORLD_SIZE/2, i); ctx.lineTo(WORLD_SIZE/2, i); ctx.stroke();
-  }
+    // set owners neutral
+    owner.fill(NEUTRAL);
+    troops.fill(0);
 
-  // World Border
-  ctx.strokeStyle = player.color;
-  ctx.lineWidth = 10;
-  ctx.strokeRect(-WORLD_SIZE/2, -WORLD_SIZE/2, WORLD_SIZE, WORLD_SIZE);
-
-  // Entities
-  food.forEach(f => {
-    ctx.fillStyle = f.color;
-    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill();
-  });
-
-  powerups.forEach(p => {
-    ctx.fillStyle = p.type.c;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.textAlign="center"; ctx.font="bold 12px Arial";
-    ctx.fillText(p.type.l[0], p.x, p.y+4);
-  });
-
-  bots.forEach(b => {
-    // Danger indicator if bot can eat player
-    if(player.alive && b.r > player.r * 1.1){
-        ctx.strokeStyle = "rgba(255,0,0," + (0.3 + Math.sin(Date.now()/200)*0.2) + ")";
-        ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, Math.PI*2); ctx.stroke();
+    // seed players and bots near corners inside different continents
+    const seeds = [];
+    // derive seeds by picking one cell from different continents for players/bots
+    const totalPlayers = 1 + BOT_COUNT;
+    for (let i=0;i<totalPlayers;i++){
+      const cont = i % CONTINENT_COUNT;
+      // pick a random cell inside continent
+      const cells = continentCells[cont];
+      const cell = cells[Math.floor(Math.random()*cells.length)];
+      seeds.push(cell);
     }
-    drawEntity(b);
-  });
-  
-  if(player.alive) drawEntity(player);
+    for (let i=0;i<seeds.length;i++){
+      const id = (i===0)?PLAYER_ID:(PLAYER_ID + i);
+      owner[seeds[i]] = id;
+      troops[seeds[i]] = 16 + Math.floor(Math.random()*8);
+      // spread small nearby territory
+      for (const n of neighbors(seeds[i])){
+        if (Math.random() < 0.45 && owner[n] === NEUTRAL){
+          owner[n] = id;
+          troops[n] = 4 + Math.random()*8;
+        }
+      }
+    }
 
-  ctx.restore();
+    // after initial assignment, place camps on remaining neutral cells
+    placeCamps();
 
-  drawMinimap();
-  if(gameActive && Date.now() % 1000 < 50) updateLeaderboard();
-  requestAnimationFrame(draw);
-}
-
-function drawEntity(e){
-  ctx.fillStyle = e.color;
-  ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "white";
-  ctx.font = `bold ${Math.max(12, e.r/2.5)}px Arial`;
-  ctx.textAlign = "center";
-  ctx.fillText(e.name, e.x, e.y + e.r/6);
-}
-
-function drawMinimap(){
-  const size = 160, margin = 20;
-  const mx = margin, my = canvas.height - size - margin;
-  ctx.fillStyle = "rgba(0,0,0,0.8)";
-  ctx.fillRect(mx, my, size, size);
-  ctx.strokeStyle = "#333";
-  ctx.strokeRect(mx, my, size, size);
-
-  const s = size / WORLD_SIZE;
-  const cx = mx + size/2, cy = my + size/2;
-
-  bots.forEach(b => {
-    ctx.fillStyle = b.color;
-    // Minimap dots now scale with entity size!
-    const dotSize = Math.max(2, b.r * s * 2);
-    ctx.beginPath(); ctx.arc(cx + b.x*s, cy + b.y*s, dotSize, 0, Math.PI*2); ctx.fill();
-  });
-
-  if(player.alive){
-    ctx.fillStyle = "#fff";
-    const pSize = Math.max(3, player.r * s * 2);
-    ctx.beginPath(); ctx.arc(cx + player.x*s, cy + player.y*s, pSize, 0, Math.PI*2); ctx.fill();
-    // Pulse effect on minimap for player
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx + player.x*s, cy + player.y*s, pSize + Math.sin(Date.now()/100)*2, 0, Math.PI*2); ctx.stroke();
+    selectedIndex = -1;
+    statWinner.textContent = '';
+    computeVisibility();
+    computeContinentsAndBonuses(); // initialize continent stats
+    computeSupply(); // initialize supply (isolation)
+    render();
   }
-}
 
-function updateLeaderboard(){
-  let all = [...bots]; if(player.alive) all.push(player);
-  all.sort((a,b) => b.r - a.r);
-  uiElements.lbContent.innerHTML = all.slice(0, 8).map((e, i) => `
-    <div class="lb-entry" style="color:${e === player ? '#fff' : '#888'}">
-      <span><span class="lb-rank">${i+1}.</span> ${e.name}</span>
-      <span>${Math.floor(e.r)}</span>
-    </div>
-  `).join('');
-}
+  // ---------- Visibility (fog) ----------
+  function computeVisibility(){
+    visibleNow.fill(0);
+    const visionBase = Number(document.getElementById('visionRadius')?.value || 2) || 2;
+    const vision = visionBase + (gameModifiers.visionBonus || 0);
+    const fogMode = (document.getElementById('fogMode')?.value || 'off');
+    if (fogMode === 'off'){
+      for (let i=0;i<N;i++){ visibleNow[i] = 1; seenEver[i] = 1; }
+      return;
+    }
+    for (let i=0;i<N;i++){
+      if (owner[i] === PLAYER_ID){
+        const [sx,sy] = xyFromIndex(i);
+        for (let dy=-vision;dy<=vision;dy++){
+          for (let dx=-vision;dx<=vision;dx++){
+            const nx = sx + dx, ny = sy + dy;
+            if (!inBounds(nx,ny)) continue;
+            const dist = Math.abs(dx) + Math.abs(dy);
+            if (dist <= vision){
+              const j = idx(nx,ny); visibleNow[j] = 1; seenEver[j] = 1;
+            }
+          }
+        }
+      }
+    }
+  }
 
-// Start visual loop
-spawnFood(INITIAL_FOOD);
-for(let i=0; i<BOT_COUNT; i++) spawnBot();
-requestAnimationFrame(draw);
-setInterval(update, 1000/60);
+  // ---------- Continents: compute ownership & bonuses ----------
+  let continentStats = {}; // cid -> {owner, size, counts, percentByOwner, controllingOwner, bonusActive}
+  function computeContinentsAndBonuses(){
+    continentStats = {};
+    for (let c=0;c<CONTINENT_COUNT;c++){
+      const cells = continentCells[c] || [];
+      const size = cells.length;
+      const counts = {};
+      for (const cell of cells){
+        const o = owner[cell];
+        counts[o] = (counts[o] || 0) + 1;
+      }
+      // compute top owner and percentage
+      let topOwner = NEUTRAL, topCount = 0;
+      for (const [oStr, ct] of Object.entries(counts)){
+        const o = Number(oStr);
+        if (ct > topCount){ topCount = ct; topOwner = o; }
+      }
+      const percent = size > 0 ? (topCount / size) : 0;
+      const bonusActive = (topOwner !== NEUTRAL && topOwner !== CAMP_OWNER && percent >= CONTINENT_CONTROL_THRESHOLD);
+      continentStats[c] = { owner: topOwner, size, counts, percent, bonusActive };
+    }
+    // apply continent bonuses (we apply these while computing growth later)
+  }
+
+  // ---------- Supply / isolation ----------
+  // For each owner (players and bots), find their seed/base cells and BFS through owned cells to mark connected supply.
+  // Any owned cell not reached by BFS is isolated.
+  function computeSupply(){
+    isolated.fill(0);
+    // find seeds per owner: we treat any cell that was initially a seed as a base — approximate by largest troop cell per owner
+    const bases = {};
+    for (let i=0;i<N;i++){
+      const o = owner[i];
+      if (o !== NEUTRAL && o !== CAMP_OWNER){
+        if (!bases[o]) bases[o] = [];
+        // treat cells with troops >= 12 as candidate base (this is heuristic)
+        if (troops[i] >= 12) bases[o].push(i);
+      }
+    }
+    // for each owner, BFS from their bases through owned cells
+    for (const [ownerStr, baseList] of Object.entries(bases)){
+      const o = Number(ownerStr);
+      const seen = new Uint8Array(N);
+      const q = [];
+      for (const b of baseList){
+        q.push(b); seen[b] = 1;
+      }
+      let head = 0;
+      while (head < q.length){
+        const cur = q[head++]; // cur is connected
+        for (const n of neighbors(cur)){
+          if (seen[n]) continue;
+          if (owner[n] === o){ seen[n] = 1; q.push(n); }
+        }
+      }
+      // any owned cell not seen is isolated
+      for (let i=0;i<N;i++){
+        if (owner[i] === o && !seen[i]) isolated[i] = 1;
+      }
+    }
+    // note: cells owned by players with no base seeds are considered isolated (if owner present but no BFS)
+    for (let i=0;i<N;i++){
+      const o = owner[i];
+      if (o !== NEUTRAL && o !== CAMP_OWNER){
+        if (!bases[o] || bases[o].length === 0) isolated[i] = 1;
+      }
+    }
+  }
+
+  // ---------- Camps behavior ----------
+  // Camps grow slowly and occasionally attack neighboring cells (including neutral / player / bot).
+  function campsThink(){
+    for (const camp of camps){
+      // passive growth
+      growthAcc[camp.cell] += CAMP_GROWTH_TICK;
+      if (growthAcc[camp.cell] >= 1){
+        const add = Math.floor(growthAcc[camp.cell]);
+        camp.troops += add;
+        troops[camp.cell] += add;
+        growthAcc[camp.cell] -= add;
+      }
+      // random attack
+      if (Math.random() < CAMP_ATTACK_CHANCE){
+        const neigh = neighbors(camp.cell);
+        if (neigh.length === 0) continue;
+        // pick weakest neighbor that is not same owner (prefer player/bot/neutral)
+        neigh.sort((a,b) => (troops[a]||0) - (troops[b]||0));
+        const target = neigh[0];
+        // send small fraction
+        const send = Math.max(1, Math.floor(camp.troops * 0.4));
+        if (send >= 1){
+          // reduce camp troops and the tile troops resolved immediately (camps use instant attack to keep simple)
+          camp.troops -= send;
+          troops[camp.cell] = Math.max(0, troops[camp.cell] - send);
+          // attacker vs defender resolution
+          if (send > troops[target]){
+            // capture
+            owner[target] = CAMP_OWNER;
+            troops[target] = send - troops[target];
+            // if a player lost a base/cell, compute supply later
+          } else {
+            troops[target] -= send;
+            if (troops[target] < 0.0001) troops[target] = 0;
+          }
+        }
+      }
+    }
+    // update camps array to remove camps if captured by player/bot (owner changed)
+    for (let i = camps.length - 1; i >= 0; i--){
+      const camp = camps[i];
+      if (owner[camp.cell] !== CAMP_OWNER){
+        // camp captured: award bounty if player captured it
+        if (owner[camp.cell] === PLAYER_ID) { coins += CAMP_BOUNTY; updatePlayerUI(); }
+        // remove camp
+        camps.splice(i,1);
+      } else {
+        // sync camp troop count to troops array
+        troops[camp.cell] = camp.troops;
+      }
+    }
+  }
+
+  // ---------- send & resolve movements ----------
+  function sendTroopsAlongPath(path, pct){
+    if (!path || path.length < 2) return;
+    const from = path[0];
+    const id = owner[from];
+    if (id === NEUTRAL || id === CAMP_OWNER) return;
+    const available = Math.floor(Math.max(0, troops[from] - MIN_HOLD_TROOPS - outgoingPending[from]));
+    const send = Math.floor(available * pct / 100);
+    if (send < 1) return;
+    troops[from] -= send;
+    outgoingPending[from] += send;
+    movements.push({ path: path.slice(), owner: id, amount: send, currentIndex: 0, progress: 0 });
+  }
+
+  function resolveArrival(m){
+    const final = m.path[m.path.length - 1];
+    const src = m.path[0];
+    outgoingPending[src] = Math.max(0, outgoingPending[src] - m.amount);
+    if (owner[final] === m.owner){
+      troops[final] += m.amount;
+    } else {
+      if (m.amount > troops[final]){
+        const left = m.amount - troops[final];
+        owner[final] = m.owner;
+        troops[final] = left;
+        // if a player captured a camp, remove camp and award bounty
+        if (owner[final] === PLAYER_ID) {
+          // check if there was a camp at final cell
+          const campIdx = camps.findIndex(c => c.cell === final);
+          if (campIdx !== -1) { // captured camp
+            coins += CAMP_BOUNTY; updatePlayerUI();
+            camps.splice(campIdx, 1);
+          }
+        } else {
+          // if bot captured camp, remove camp but no coin reward to player
+          const campIdx = camps.findIndex(c => c.cell === final);
+          if (campIdx !== -1) camps.splice(campIdx,1);
+        }
+      } else {
+        troops[final] -= m.amount;
+        if (troops[final] < 0.0001) troops[final] = 0;
+      }
+    }
+  }
+
+  // award coins on capture by player
+  function awardCaptureBounty(id){
+    if (id === PLAYER_ID){ coins += CAPTURE_BOUNTY; updatePlayerUI(); }
+  }
+
+  // ---------- compute continent-controlled bonuses each tick ----------
+  function applyContinentBonuses(){
+    computeContinentsAndBonuses();
+    // for each continent: if controlling owner exists and is not neutral/camp, apply growth multiplier and coin bonus
+    for (let c=0;c<CONTINENT_COUNT;c++){
+      const stat = continentStats[c];
+      if (!stat) continue;
+      if (stat.bonusActive && stat.owner !== NEUTRAL && stat.owner !== CAMP_OWNER){
+        // apply growth bonus: we add a fractional growth per owned cell on this continent for owner
+        // We'll handle by temporarily increasing growthAcc of owned cells to simulate bonus growth
+        for (const cell of continentCells[c]){
+          if (owner[cell] === stat.owner){
+            // add fractional growth directly to growthAcc to be applied in main growth loop
+            growthAcc[cell] += CONTINENT_BONUS_GROWTH;
+          }
+        }
+        // coin bonus applied separately in per-tick coin awarding by counting continents controlled by player
+      }
+    }
+  }
+
+  // ---------- supply / isolation check per tick ----------
+  function performSupplyCheck(){
+    computeSupply();
+    // isolated cells lose small troops per tick (attrition)
+    for (let i=0;i<N;i++){
+      if (isolated[i]){
+        const loss = 0.08; // fractional decay per tick
+        troops[i] = Math.max(0, troops[i] - loss);
+      }
+    }
+  }
+
+  // ---------- Bots: improved to consider continents & supply ----------
+  function botThink(){
+    // same approach as before but with continent awareness
+    const ownerList = [];
+    for (let b=0;b<BOT_COUNT;b++) ownerList.push(PLAYER_ID + 1 + b);
+
+    for (const bid of ownerList){
+      // compute owned cells and fronts
+      const owned = [], front = [];
+      for (let i=0;i<N;i++){
+        if (owner[i] === bid){ owned.push(i); if (neighbors(i).some(n => owner[n] !== bid)) front.push(i); }
+      }
+      if (owned.length === 0) continue;
+
+      // compute surplus for each owned cell
+      const surplus = new Float32Array(N);
+      let totalSurplus = 0;
+      for (const s of owned){
+        const sAmt = troops[s] - MIN_HOLD_TROOPS - outgoingPending[s];
+        surplus[s] = sAmt > 0 ? sAmt : 0;
+        totalSurplus += surplus[s];
+      }
+      if (totalSurplus < 1) continue;
+
+      // Defensive: reinforce threatened front cells (cheap)
+      for (const f of front){
+        const enemies = neighbors(f).filter(n => owner[n] !== bid && owner[n] !== NEUTRAL && owner[n] !== CAMP_OWNER);
+        let threat = 0; for (const e of enemies) threat += troops[e];
+        if (threat > troops[f] * 1.1){
+          // find donor nearest
+          let bestDonor=-1, bestLen=1e9;
+          for (const d of owned){
+            if (surplus[d] < 2) continue;
+            const key = d+'_'+f; let p = getCachedPath(key); if (!p) p = findPath(d,f); if(!p) continue;
+            if (p.length < bestLen){ bestLen = p.length; bestDonor = d; }
+          }
+          if (bestDonor !== -1){
+            const need = Math.ceil(threat - troops[f]*0.6);
+            const avail = Math.floor(Math.max(0, troops[bestDonor] - MIN_HOLD_TROOPS - outgoingPending[bestDonor]));
+            const toSend = Math.min(avail, Math.max(1, Math.floor(need*0.6)));
+            if (toSend > 0){
+              const p = findPath(bestDonor, f);
+              if (p) sendTroopsAlongPath(p, Math.max(20, Math.floor(100 * toSend / Math.max(1, avail))));
+              surplus[bestDonor] -= toSend;
+            }
+          }
+        }
+      }
+
+      // Offensive: prefer completing continent control or attacking weak neutral camps/tiles
+      // Build candidate targets near fronts
+      const candidates = new Map();
+      for (const f of front){
+        for (const n of neighbors(f)){
+          if (owner[n] !== bid){
+            let score = (owner[n] === NEUTRAL ? 18 : (owner[n] === CAMP_OWNER ? 14 : 8));
+            score += Math.max(0, 12 - troops[n]);
+            // continent priority: if this target is in a continent where bot is close to controlling, boost score
+            const cid = continentId[n];
+            if (cid !== -1){
+              const stat = continentStats[cid];
+              if (stat && stat.owner === bid){
+                score += 6; // already largely controlling -> reinforce
+              } else if (stat){
+                // if bot owns many cells in this continent, prefer completing it
+                const myCount = stat.counts[bid] || 0;
+                if (myCount / stat.size > 0.4) score += 6;
+              }
+            }
+            candidates.set(n, Math.max(candidates.get(n)||0, score));
+          }
+        }
+      }
+      const candArr = Array.from(candidates.entries()).map(([t,s]) => ({t,score:s})).sort((a,b) => b.score - a.score);
+      const attacksAllowed = totalSurplus > 12 ? 2 : (totalSurplus > 6 ? 1 : 0);
+      let attempts = 0;
+      for (const cand of candArr){
+        if (attempts >= attacksAllowed) break;
+        // find best source
+        let bestSource = -1, bestPath = null, bestLen = 1e9;
+        for (const s of front){
+          if (troops[s] <= MIN_HOLD_TROOPS + 1) continue;
+          const key = s + '_' + cand.t; let p = getCachedPath(key); if (!p) p = findPath(s, cand.t); if (!p) continue;
+          if (p.length < bestLen){ bestLen = p.length; bestSource = s; bestPath = p; }
+        }
+        if (bestSource === -1){
+          for (const s of owned){
+            if (troops[s] <= MIN_HOLD_TROOPS + 1) continue;
+            const key = s + '_' + cand.t; let p = getCachedPath(key); if (!p) p = findPath(s, cand.t); if (!p) continue;
+            if (p.length < bestLen){ bestLen = p.length; bestSource = s; bestPath = p; }
+          }
+        }
+        if (bestSource === -1 || !bestPath) continue;
+        const defender = troops[cand.t];
+        const avail = Math.floor(Math.max(0, troops[bestSource] - MIN_HOLD_TROOPS - outgoingPending[bestSource]));
+        if (avail < 2) continue;
+        let need = Math.ceil(defender * 1.05) + 1;
+        if (owner[cand.t] === NEUTRAL) need = Math.ceil(Math.max(2, defender * 0.82)) + 2;
+        const sendAmt = Math.min(avail, need, Math.floor(avail * 0.9));
+        if (sendAmt < 1) continue;
+        const pct = Math.min(95, Math.max(20, Math.floor(100 * sendAmt / Math.max(1, avail))));
+        sendTroopsAlongPath(bestPath, pct);
+        attempts++;
+      }
+    }
+  }
+
+  // ---------- UI helpers ----------
+  function updatePlayerUI(){
+    coinsUI.textContent = Math.floor(coins);
+    playerNameUI.textContent = playerName || 'Player';
+    document.getElementById('purchasesList').textContent = purchases.length ? purchases.join(', ') : 'none';
+    document.getElementById('purchasesPanel').style.display = purchases.length ? 'block' : 'none';
+  }
+
+  // populate continent list panel
+  function updateContinentList(){
+    computeContinentsAndBonuses();
+    continentList.innerHTML = '';
+    for (let c=0;c<CONTINENT_COUNT;c++){
+      const s = continentStats[c] || { owner:NEUTRAL, size:(continentCells[c]||[]).length, percent:0, bonusActive:false };
+      const ownerName = (s.owner === PLAYER_ID ? 'YOU' : (s.owner === NEUTRAL ? 'Neutral' : (s.owner === CAMP_OWNER ? 'CAMP' : 'BOT ' + (s.owner - PLAYER_ID))));
+      const div = document.createElement('div');
+      div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.padding = '6px'; div.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+      div.innerHTML = `<div style="font-weight:700">Cont ${c}</div><div class="muted">Owner: ${ownerName} • ${(Math.round(s.percent*100))}%</div>`;
+      if (s.bonusActive) { const b = document.createElement('div'); b.style.color='#ffd54d'; b.textContent='BONUS'; div.appendChild(b); }
+      continentList.appendChild(div);
+    }
+  }
+
+  // update camp list
+  function updateCampList(){
+    campList.innerHTML = '';
+    for (let i=0;i<camps.length;i++){
+      const c = camps[i];
+      const [x,y] = xyFromIndex(c.cell);
+      const el = document.createElement('div');
+      el.style.display='flex'; el.style.justifyContent='space-between'; el.style.padding='6px'; el.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+      el.innerHTML = `<div style="font-weight:700">Camp ${i}</div><div class="muted">Cell:${c.cell} (${x},${y}) • T:${Math.floor(c.troops)}</div>`;
+      campList.appendChild(el);
+    }
+    if (camps.length===0) campList.innerHTML = '<div class="muted">No camps remain.</div>';
+  }
+
+  // ---------- Rendering ----------
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.font = '12px system-ui,Roboto';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+    const showContinents = showContinentsCheckbox.checked;
+    const showIsolation = showIsolationCheckbox.checked;
+
+    for (let y=0;y<GRID_H;y++){
+      for (let x=0;x<GRID_W;x++){
+        const i = idx(x,y);
+        const vis = visibleNow[i];
+        // base fill
+        let baseColor = '#07121a';
+        if (vis) {
+          baseColor = colors[owner[i]] || '#ff0';
+        } else {
+          baseColor = '#07121a';
+        }
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+        // continent overlay if toggled
+        if (showContinents){
+          const cid = continentId[i];
+          if (cid !== -1){
+            ctx.fillStyle = continentColors[cid] || 'rgba(255,255,255,0.02)';
+            ctx.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        }
+
+        // isolation overlay
+        if (showIsolation && isolated[i]) {
+          ctx.fillStyle = 'rgba(255,32,32,0.18)';
+          ctx.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+
+        // border
+        ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+        ctx.strokeRect(x*CELL_SIZE+0.5, y*CELL_SIZE+0.5, CELL_SIZE-1, CELL_SIZE-1);
+
+        // troop numbers if visible
+        if (visibleNow[i] || owner[i] === PLAYER_ID || seenEver[i]) {
+          const t = Math.floor(troops[i]);
+          if (t > 0) { ctx.fillStyle = '#04131a'; ctx.fillText(String(t), x*CELL_SIZE + CELL_SIZE/2, y*CELL_SIZE + CELL_SIZE/2); }
+          const pending = Math.floor(outgoingPending[i]);
+          if (pending > 0) { ctx.fillStyle = 'rgba(4,19,26,0.7)'; ctx.fillText('+'+pending, x*CELL_SIZE + CELL_SIZE - 8, y*CELL_SIZE + 10); }
+        }
+      }
+    }
+
+    // preview path
+    if (dragging && previewPath && previewPath.length > 0){
+      ctx.save(); ctx.globalAlpha = 0.95; ctx.lineWidth=3; ctx.setLineDash([6,6]); ctx.strokeStyle = '#ffd54d'; ctx.beginPath();
+      for (let p=0;p<previewPath.length-1;p++){
+        const a = previewPath[p], b = previewPath[p+1];
+        const [ax,ay] = xyFromIndex(a), [bx,by] = xyFromIndex(b);
+        ctx.moveTo(ax*CELL_SIZE + CELL_SIZE/2, ay*CELL_SIZE + CELL_SIZE/2);
+        ctx.lineTo(bx*CELL_SIZE + CELL_SIZE/2, by*CELL_SIZE + CELL_SIZE/2);
+      }
+      ctx.stroke(); ctx.restore();
+    }
+
+    // highlight selected
+    if (selectedIndex >= 0){
+      const sx = selectedIndex % GRID_W, sy = Math.floor(selectedIndex / GRID_W);
+      ctx.lineWidth = 3; ctx.strokeStyle = '#ffd54d';
+      ctx.strokeRect(sx*CELL_SIZE+2, sy*CELL_SIZE+2, CELL_SIZE-4, CELL_SIZE-4);
+      ctx.lineWidth = 1;
+    }
+
+    // render camps as circles & update troops text (always shown)
+    for (const camp of camps){
+      const [cx,cy] = xyFromIndex(camp.cell);
+      const px = cx*CELL_SIZE + CELL_SIZE/2, py = cy*CELL_SIZE + CELL_SIZE/2;
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255,92,92,0.95)';
+      ctx.arc(px, py, 8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#04131a';
+      ctx.font = '10px system-ui';
+      ctx.fillText(String(Math.floor(camp.troops)), px, py);
+    }
+
+    // movements
+    for (const m of movements){
+      const pi = m.currentIndex;
+      const path = m.path;
+      const from = path[pi];
+      const to = path[Math.min(pi+1, path.length-1)];
+      const [fx,fy] = xyFromIndex(from), [tx,ty] = xyFromIndex(to);
+      const sx = fx*CELL_SIZE + CELL_SIZE/2, sy = fy*CELL_SIZE + CELL_SIZE/2;
+      const ex = tx*CELL_SIZE + CELL_SIZE/2, ey = ty*CELL_SIZE + CELL_SIZE/2;
+      const px = sx + (ex - sx) * m.progress;
+      const py = sy + (ey - sy) * m.progress;
+      ctx.beginPath();
+      ctx.fillStyle = colors[m.owner] || '#fff';
+      ctx.arc(px, py, Math.max(4, Math.min(12, Math.sqrt(m.amount) + 1)), 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#04131a';
+      ctx.font = '10px system-ui';
+      ctx.fillText(String(Math.floor(m.amount)), px, py);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.stroke();
+    }
+
+    // HUD selected
+    if (selectedIndex >= 0){
+      const sid = owner[selectedIndex];
+      selectedInfo.innerHTML = `Idx ${selectedIndex} | ${sid===PLAYER_ID ? 'YOU' : (sid===NEUTRAL ? 'NEUTRAL' : (sid===CAMP_OWNER ? 'CAMP' : 'BOT '+(sid-PLAYER_ID)))} | Troops: ${Math.floor(troops[selectedIndex])} | Pending: ${Math.floor(outgoingPending[selectedIndex])}${isolated[selectedIndex] ? ' • ISOLATED' : ''}`;
+    } else selectedInfo.innerHTML = 'None';
+  }
+
+  // ---------- Per-tick logic ----------
+  let tickCount = 0;
+  function gameTick(){
+    tickCount++;
+    // growth per cell (owner != neutral and not camp)
+    for (let i=0;i<N;i++){
+      if (owner[i] !== NEUTRAL && owner[i] !== CAMP_OWNER){
+        growthAcc[i] += (GROWTH_PER_TICK * (gameModifiers.growthMultiplier || 1));
+        if (growthAcc[i] >= 1){
+          const add = Math.floor(growthAcc[i]);
+          troops[i] += add;
+          growthAcc[i] -= add;
+        }
+      }
+    }
+
+    // continent bonuses (add fractional growth)
+    applyContinentBonuses();
+
+    // advance movements
+    const moveSpeed = (Number(moveSpeedInput.value) || 0.5) * (gameModifiers.moveMultiplier || 1);
+    for (let k = movements.length - 1; k >= 0; k--){
+      const m = movements[k];
+      m.progress += moveSpeed;
+      while (m.progress >= 1 && m.currentIndex < m.path.length - 1){
+        m.progress -= 1;
+        m.currentIndex++;
+      }
+      if (m.currentIndex >= m.path.length - 1 && m.progress >= 1){
+        resolveArrival(m);
+        movements.splice(k,1);
+      }
+    }
+
+    // camps think
+    campsThink();
+
+    // supply check + isolation attrition
+    performSupplyCheck();
+
+    // award coins per tick: owned cells + continent bonuses
+    awardCoinsPerTick();
+
+    // bots think occasionally
+    if (!paused && BOT_COUNT > 0 && tickCount % BOT_THINK_CADENCE === 0){
+      botThink();
+    }
+
+    // recompute visibility
+    computeVisibility();
+
+    // update continent & camp lists for UI periodically
+    if (tickCount % 10 === 0){
+      updateContinentList();
+      updateCampList();
+    }
+
+    // winner check (if one non-neutral non-camp owner remains)
+    const alive = new Set();
+    for (let i=0;i<N;i++){
+      if (owner[i] !== NEUTRAL && owner[i] !== CAMP_OWNER) alive.add(owner[i]);
+    }
+    const aliveArr = Array.from(alive);
+    if (aliveArr.length === 1){
+      const w = aliveArr[0];
+      statWinner.textContent = (w === PLAYER_ID ? 'PLAYER WINS!' : `BOT ${w-PLAYER_ID} WINS`);
+      paused = true;
+    }
+
+    render();
+  }
+
+  // award coins per tick (cells + continent owned)
+  function awardCoinsPerTick(){
+    let cellsOwned = 0;
+    const continentCountByOwner = {};
+    for (let i=0;i<N;i++){
+      if (owner[i] === PLAYER_ID) cellsOwned++;
+    }
+    coins += cellsOwned * COIN_PER_CELL_PER_TICK;
+    // continent coins
+    computeContinentsAndBonuses();
+    for (let c=0;c<CONTINENT_COUNT;c++){
+      const s = continentStats[c];
+      if (s && s.bonusActive && s.owner === PLAYER_ID){
+        coins += CONTINENT_BONUS_COINS;
+      }
+    }
+    updatePlayerUI();
+  }
+
+  // ---------- Input & UI wiring ----------
+  function pointToCell(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((clientX - rect.left) / (rect.width / GRID_W));
+    const y = Math.floor((clientY - rect.top) / (rect.height / GRID_H));
+    if (!inBounds(x,y)) return -1;
+    return idx(x,y);
+  }
+
+  canvas.addEventListener('mousedown', (ev) => {
+    const i = pointToCell(ev.clientX, ev.clientY);
+    if (i < 0) return;
+    if (owner[i] === PLAYER_ID){
+      dragging = true; dragStart = i; previewPath = [i]; selectedIndex = i; render();
+    } else {
+      if (owner[i] === PLAYER_ID) selectedIndex = i;
+      else {
+        if (selectedIndex >= 0){
+          const p = findPath(selectedIndex, i);
+          if (p && p.length >= 2) { sendTroopsAlongPath(p, Number(attackPctInput.value)); selectedIndex = -1; }
+          else selectedIndex = -1;
+        }
+      }
+    }
+  });
+
+  canvas.addEventListener('mousemove', (ev) => {
+    if (!dragging) return;
+    const i = pointToCell(ev.clientX, ev.clientY);
+    if (i < 0) { previewPath = null; return; }
+    const key = dragStart + '_' + i;
+    let p = getCachedPath(key);
+    if (!p) p = findPath(dragStart, i);
+    previewPath = p;
+  });
+
+  window.addEventListener('mouseup', (ev) => {
+    if (!dragging) return;
+    dragging = false;
+    const i = pointToCell(ev.clientX, ev.clientY);
+    if (i < 0) { previewPath = null; dragStart = -1; return; }
+    const key = dragStart + '_' + i;
+    let p = getCachedPath(key);
+    if (!p) p = findPath(dragStart, i);
+    if (p && p.length >= 2) sendTroopsAlongPath(p, Number(attackPctInput.value));
+    previewPath = null; dragStart = -1;
+  });
+
+  canvas.addEventListener('click', (ev) => {
+    if (dragging) return;
+    const i = pointToCell(ev.clientX, ev.clientY);
+    if (i < 0) return;
+    if (owner[i] === PLAYER_ID) selectedIndex = i;
+    else {
+      if (selectedIndex >= 0){
+        const p = findPath(selectedIndex, i);
+        if (p && p.length >= 2) { sendTroopsAlongPath(p, Number(attackPctInput.value)); selectedIndex = -1; }
+        else selectedIndex = -1;
+      }
+    }
+    render();
+  });
+
+  // UI buttons
+  document.getElementById('btn-open-menu').addEventListener('click', () => { openMenu(); });
+  document.getElementById('btn-reset').addEventListener('click', () => { resetMap(); });
+
+  // menu handlers
+  document.getElementById('menuStart').addEventListener('click', () => {
+    playerName = document.getElementById('menuName').value || 'Player';
+    difficulty = document.getElementById('menuDifficulty').value || 'normal';
+    applyDifficultyAndStart(difficulty);
+    updatePlayerUI(); closeMenu();
+  });
+  function openMenu(){ mainMenu.style.display = 'flex'; paused = true; }
+  function closeMenu(){ mainMenu.style.display = 'none'; paused = false; }
+
+  // shop & inventory wiring (kept simple)
+  document.getElementById('btn-shop').addEventListener('click', ()=>{ shopModal.style.display='flex'; paused=true; populateShop(); });
+  document.getElementById('shopClose').addEventListener('click', ()=>{ shopModal.style.display='none'; paused=false; });
+  document.getElementById('btn-inventory').addEventListener('click', ()=>{ invModal.style.display='flex'; paused=true; populateInv(); });
+  document.getElementById('invClose').addEventListener('click', ()=>{ invModal.style.display='none'; paused=false; });
+
+  function populateShop(){
+    shopItemsEl.innerHTML = '';
+    for (const item of shopCatalog){
+      const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.marginBottom='8px'; div.style.padding='6px'; div.style.background='rgba(255,255,255,0.02)'; div.style.borderRadius='6px';
+      const left = document.createElement('div'); left.innerHTML = `<div style="font-weight:800">${item.name}</div><div class="muted" style="font-size:12px">${item.desc}</div>`;
+      const right = document.createElement('div'); right.style.textAlign='right';
+      const price = document.createElement('div'); price.style.fontWeight='800'; price.textContent = item.price + '¢';
+      const btn = document.createElement('button'); btn.textContent='Buy';
+      if (coins < item.price) btn.disabled = true;
+      btn.addEventListener('click', ()=>{ if (coins < item.price) { alert('Not enough coins.'); return; } coins -= item.price; purchases.push(item.id); item.apply(gameModifiers); updatePlayerUI(); alert(`${item.name} purchased.`); populateShop(); });
+      right.appendChild(price); right.appendChild(btn);
+      div.appendChild(left); div.appendChild(right); shopItemsEl.appendChild(div);
+    }
+  }
+
+  function populateInv(){
+    const invEl = document.getElementById('invItems'); invEl.innerHTML = '';
+    if (gameModifiers.inventory && gameModifiers.inventory.length){
+      gameModifiers.inventory.forEach((it, idx) => {
+        if (it.type === 'recruit_pack'){
+          const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.padding='6px'; row.style.marginBottom='6px'; row.style.background='rgba(255,255,255,0.02)'; row.style.borderRadius='6px';
+          row.innerHTML = `<div style="font-weight:800">Recruit Pack</div><div class="muted">+30 troops to chosen owned cell</div>`;
+          const btn = document.createElement('button'); btn.textContent='Use';
+          btn.addEventListener('click', ()=> {
+            // apply to selected or largest cell
+            let target = selectedIndex;
+            if (target < 0 || owner[target] !== PLAYER_ID){
+              let best = -1, bestT=0;
+              for (let i=0;i<N;i++){ if (owner[i] === PLAYER_ID && troops[i] > bestT){ bestT = troops[i]; best = i; } }
+              target = best;
+            }
+            if (target < 0){ alert('No owned cell to apply recruit pack.'); return; }
+            troops[target] += 30;
+            gameModifiers.inventory.splice(idx,1);
+            alert('Recruit pack applied.');
+            populateInv();
+            render();
+          });
+          row.appendChild(btn);
+          invEl.appendChild(row);
+        }
+      });
+    } else invEl.innerHTML = '<div class="muted">No consumables</div>';
+  }
+
+  // ---------- Save / Load (localStorage & download) ----------
+  const LOCAL_KEY = 'zonex_territorial_save_v1';
+  function saveToLocal(){
+    const data = {
+      meta:{ playerName, difficulty, coins, purchases, gameModifiers },
+      state:{
+        owner: Array.from(owner), troops: Array.from(troops), growthAcc: Array.from(growthAcc),
+        outgoingPending: Array.from(outgoingPending), movements: movements.map(m=>({path:m.path, owner:m.owner, amount:m.amount, currentIndex:m.currentIndex, progress:m.progress})),
+        continentId: Array.from(continentId), camps, continentCells
+      }
+    };
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); alert('Saved to localStorage.'); } catch(e){ alert('Save failed: ' + e.message); }
+  }
+  function loadFromLocal(){
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw){ alert('No saved data'); return; }
+    try {
+      const data = JSON.parse(raw);
+      loadFromData(data);
+      alert('Loaded save.');
+    } catch(e){ alert('Failed to load: '+e.message); }
+  }
+  function downloadSave(){
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw){ alert('No save to download. Save first.'); return; }
+    const blob = new Blob([raw], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'zonex_territorial_save.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  document.getElementById('btn-save')?.addEventListener('click', saveToLocal);
+  document.getElementById('btn-load')?.addEventListener('click', loadFromLocal);
+  document.getElementById('btn-download')?.addEventListener('click', downloadSave);
+
+  function loadFromData(data){
+    if (!data || !data.state) { alert('Invalid save'); return; }
+    // load meta
+    playerName = data.meta?.playerName || playerName;
+    difficulty = data.meta?.difficulty || difficulty;
+    coins = data.meta?.coins || coins;
+    purchases = data.meta?.purchases || purchases;
+    gameModifiers = data.meta?.gameModifiers || gameModifiers;
+    // load arrays
+    const s = data.state;
+    if (s.owner.length !== N){ alert('Save grid mismatch — starting new game.'); resetMap(); return; }
+    owner = new Uint8Array(s.owner); troops = new Float32Array(s.troops); growthAcc = new Float32Array(s.growthAcc);
+    outgoingPending = new Float32Array(s.outgoingPending);
+    movements = (s.movements || []).map(m=>({ path:m.path, owner:m.owner, amount:m.amount, currentIndex:m.currentIndex, progress:m.progress }));
+    // continents/camps
+    if (s.continentId && s.continentId.length === N){ continentId = new Int16Array(s.continentId); continentCells = s.continentCells || {}; }
+    camps = s.camps || [];
+    computeVisibility(); computeContinentsAndBonuses(); computeSupply();
+    updatePlayerUI(); updateContinentList(); updateCampList();
+  }
+
+  // ---------- Difficulty / start ----------
+  function applyDifficultyAndStart(diff){
+    difficulty = diff || 'normal';
+    difficultySelect.value = difficulty;
+    if (difficulty === 'easy'){ BOT_COUNT = 2; GROWTH_PER_TICK = 0.26; BOT_THINK_CADENCE = 4; MIN_HOLD_TROOPS = 2; CAMP_COUNT = 4; }
+    else if (difficulty === 'hard'){ BOT_COUNT = 4; GROWTH_PER_TICK = 0.20; BOT_THINK_CADENCE = 2; MIN_HOLD_TROOPS = 4; CAMP_COUNT = 8; }
+    else { BOT_COUNT = DEFAULT_BOT_COUNT; GROWTH_PER_TICK = 0.22; BOT_THINK_CADENCE = 3; MIN_HOLD_TROOPS = 3; CAMP_COUNT = 6; }
+    initColors();
+    resetMap();
+    paused = false;
+  }
+
+  // ---------- Loop ----------
+  let last = performance.now(), accumulator = 0;
+  function loop(now){
+    const dt = now - last; last = now;
+    const ticksPerSecond = Number(speedInput.value) || 4;
+    const msPerTick = 1000 / ticksPerSecond;
+    accumulator += dt;
+    let ticksThisFrame = 0;
+    while (!paused && accumulator >= msPerTick){
+      gameTick();
+      accumulator -= msPerTick;
+      ticksThisFrame++;
+      if (ticksThisFrame > 12){ accumulator = 0; break; }
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- UI wiring & init ----------
+  document.getElementById('btn-open-menu').addEventListener('click', openMenu);
+  document.getElementById('menuLoad').addEventListener('click', () => { loadFromLocal(); openMenu(); });
+  document.getElementById('menuDownload').addEventListener('click', downloadSave);
+  document.getElementById('menuDifficulty').addEventListener('change', (e) => { difficulty = e.target.value; });
+
+  document.getElementById('shopClose').addEventListener('click', () => { shopModal.style.display = 'none'; paused = false; });
+  document.getElementById('invClose').addEventListener('click', () => { invModal.style.display = 'none'; paused = false; });
+
+  document.getElementById('showContinents').addEventListener('change', () => { render(); });
+  document.getElementById('showIsolation').addEventListener('change', () => { render(); });
+
+  function updateContinentListAndCampList(){
+    updateContinentList();
+    updateCampList();
+  }
+
+  // quick debug keys
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'm') openMenu();
+    if ((e.key === 's' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); saveToLocal(); alert('Saved'); }
+  });
+
+  // initial UI state and start
+  function init(){
+    playerName = 'Player';
+    difficulty = 'normal';
+    gameModifiers = { growthMultiplier:1, moveMultiplier:1, visionBonus:0, inventory: [] };
+    applyDifficultyAndStart(difficulty);
+    updatePlayerUI();
+    openMenu();
+    requestAnimationFrame(loop);
+  }
+
+  init();
+})();
 </script>
 </body>
 </html>
